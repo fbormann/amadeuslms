@@ -94,26 +94,7 @@
 </div>
 {% endif %}
 
-{% if exam_list %}
-<div class="panel-group">
-  <div class="panel panel-default">
-    <div class="panel-heading">
-      <h4 class="panel-title">
-       <a data-toggle="collapse" href="#Exam" id="bot3" style="color: black"> <i class="fa fa-caret-square-o-down" aria-hidden="true" id="down3"></i>Exam</a>
-      </h4>
-    </div>
-    <div id="Exam" class="panel-collapse collapse">
-      <div class="panel-body">
-        {% for exam in exam_list %}
-              {{exam.name}}
-        {% endfor %}
 
-      </div>
-
-    </div>
-  </div>
-</div>
-{% endif %}
 
 {% if poll_list %}
 <div class="panel-group">
