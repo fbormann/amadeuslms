@@ -562,8 +562,8 @@ class SubjectDetailView(LoginRequiredMixin, LogMixin, DetailView):
     template_name = 'subjects/view.html'
     context_object_name = 'subject'
 
-    def dispatch(self, request, *args,**kwargs):
-        subject = get_object_or_404(Subject, slug = kwargs.get('slug', ''))
+    def dispatch(self, request, *args, **kwargs):
+        subject = get_object_or_404(Subject, slug=kwargs.get('slug', ''))
 
         if not has_subject_view_permissions(request.user, subject):
             return redirect(reverse_lazy('subjects:home'))
@@ -576,14 +576,18 @@ class SubjectDetailView(LoginRequiredMixin, LogMixin, DetailView):
 
         sub = self.kwargs.get('slug', '')
 
-        status_query = "SELECT CASE WHEN action = 'logout' AND EXTRACT(EPOCH FROM(NOW() - datetime::timestamp)) < 1200 THEN 2 WHEN action = 'logout' AND EXTRACT(EPOCH FROM(NOW() - datetime::timestamp)) >= 1200 THEN 1 ELSE 0 END FROM log_log WHERE log_log.user_id = users_user.id ORDER BY datetime DESC LIMIT 1"
+        status_query = "SELECT CASE WHEN action = 'logout' AND EXTRACT(EPOCH FROM(NOW() - datetime::timestamp)) " \
+                       "< 1200 THEN 2 WHEN action = 'logout' AND EXTRACT(EPOCH FROM(NOW() - datetime::timestamp)) " \
+                       ">= 1200 THEN 1 ELSE 0 END FROM log_log WHERE log_log.user_id = users_user.id " \
+                       "ORDER BY datetime DESC LIMIT 1"
 
         expire_time = settings.SESSION_SECURITY_EXPIRE_AFTER
 
         context['participants'] = User.objects.filter(
-            Q(subject_student__slug = sub) |
-            Q(professors__slug = sub)
-            ).extra(select = {'status': status_query}, select_params=(expire_time, expire_time,),).distinct().order_by('status', 'social_name','username').exclude(email = self.request.user.email)
+            Q(subject_student__slug=sub) |
+            Q(professors__slug=sub)
+            ).extra(select={'status': status_query}, select_params=(expire_time, expire_time,),).distinct()\
+            .order_by('status', 'social_name', 'username').exclude(email=self.request.user.email)
 
         resources = self.request.session.get('resources', None)
 
@@ -604,11 +608,13 @@ class SubjectDetailView(LoginRequiredMixin, LogMixin, DetailView):
         self.log_context['subject_slug'] = self.object.slug
         self.log_context['timestamp_start'] = str(int(time.time()))
 
-        super(SubjectDetailView, self).createLog(self.request.user, self.log_component, self.log_action, self.log_resource, self.log_context)
+        super(SubjectDetailView, self).createLog(self.request.user, self.log_component, self.log_action,
+                                                 self.log_resource, self.log_context)
 
         self.request.session['log_id'] = Log.objects.latest('id').id
 
         return context
+
 
 class SubjectSubscribeView(LoginRequiredMixin, LogMixin, TemplateView):
     log_component = 'subject'
@@ -623,12 +629,12 @@ class SubjectSubscribeView(LoginRequiredMixin, LogMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super(SubjectSubscribeView, self).get_context_data(**kwargs)
-        context['subject'] = get_object_or_404(Subject, slug= kwargs.get('slug'))
+        context['subject'] = get_object_or_404(Subject, slug=kwargs.get('slug'))
 
         return context
 
     def post(self, request, *args, **kwargs):
-        subject = get_object_or_404(Subject, slug= kwargs.get('slug'))
+        subject = get_object_or_404(Subject, slug=kwargs.get('slug'))
 
         if subject.subscribe_end <= datetime.datetime.today().date():
             messages.error(self.request, _('Subscription date is due!'))
@@ -640,13 +646,14 @@ class SubjectSubscribeView(LoginRequiredMixin, LogMixin, TemplateView):
             self.log_context['subject_name'] = subject.name
             self.log_context['subject_slug'] = subject.slug
 
-            super(SubjectSubscribeView, self).createLog(self.request.user, self.log_component, self.log_action, self.log_resource, self.log_context)
+            super(SubjectSubscribeView, self).createLog(self.request.user, self.log_component, self.log_action,
+                                                        self.log_resource, self.log_context)
 
             subject.students.add(request.user)
             subject.save()
             messages.success(self.request, _('Subscription was successfull!'))
 
-        return redirect(reverse_lazy('subjects:view',kwargs={"slug": subject.slug}))
+        return redirect(reverse_lazy('subjects:view', kwargs={"slug": subject.slug}))
 
 
 class SubjectSearchView(LoginRequiredMixin, LogMixin, ListView):
@@ -666,7 +673,7 @@ class SubjectSearchView(LoginRequiredMixin, LogMixin, ListView):
         # Try to dispatch to the right method; if a method doesn't exist,
         # defer to the error handler. Also defer to the error handler if the
         # request method isn't on the approved list.
-        tags =  request.GET.get('search')
+        tags = request.GET.get('search')
         tags = tags.split(" ")
 
         if tags[0] == '':
@@ -683,13 +690,16 @@ class SubjectSearchView(LoginRequiredMixin, LogMixin, ListView):
         q = Q()
         for tag in tags:
             for word in tag.split(' '):
-                q = q | Q(tags__name__unaccent__iexact=word  )
+                q = q | Q(tags__name__unaccent__iexact=word)
 
         subjects = Subject.objects.filter(q).distinct()
 
-        self.resources = Resource.objects.select_related('link', 'filelink', 'webpage', 'ytvideo', 'pdffile').filter(q).distinct()
-        self.resources = [resource.id for resource in self.resources if has_resource_permissions(self.request.user, resource)]
-        self.resources = Resource.objects.select_related('link', 'filelink', 'webpage', 'ytvideo', 'pdffile').filter(id__in = self.resources)
+        self.resources = Resource.objects.select_related('link', 'filelink', 'webpage', 'ytvideo', 'pdffile')\
+            .filter(q).distinct()
+        self.resources = [resource.id for resource in self.resources if has_resource_permissions(self.request.user,
+                                                                                                 resource)]
+        self.resources = Resource.objects.select_related('link', 'filelink', 'webpage', 'ytvideo', 'pdffile')\
+            .filter(id__in=self.resources)
 
         self.totals = {'resources': self.resources.count(), 'my_subjects': subjects.count()}
 
@@ -718,9 +728,11 @@ class SubjectSearchView(LoginRequiredMixin, LogMixin, ListView):
         context['subjects_menu_active'] = ''
 
         self.log_context['search_for'] = self.tags
-        super(SubjectSearchView, self).createLog(self.request.user, self.log_component, self.log_action, self.log_resource, self.log_context)
+        super(SubjectSearchView, self).createLog(self.request.user, self.log_component, self.log_action,
+                                                 self.log_resource, self.log_context)
 
         return context
+
 
 @log_decorator_ajax('subject', 'view', 'subject')
 def subject_view_log(request, subject):
@@ -748,9 +760,8 @@ def subject_view_log(request, subject):
     return JsonResponse({'message': 'ok'})
 
 
-
-""" BACKUP / RESTORE SECTION  """
 class Backup(LoginRequiredMixin, ListView):
+    """ BACKUP / RESTORE SECTION  """
     login_url = reverse_lazy("users:login")
     redirect_field_name = 'next'
 
@@ -759,7 +770,7 @@ class Backup(LoginRequiredMixin, ListView):
     context_object_name = 'topics'
 
     def dispatch(self, request, *args, **kwargs):
-        subject = get_object_or_404(Subject, slug = kwargs.get('slug', ''))
+        subject = get_object_or_404(Subject, slug=kwargs.get('slug', ''))
 
         if not has_subject_permissions(request.user, subject):
             return redirect(reverse_lazy('subjects:home'))
@@ -768,19 +779,20 @@ class Backup(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         slug = self.kwargs.get('slug')
-        topics = Topic.objects.filter(subject__slug = slug)
+        topics = Topic.objects.filter(subject__slug=slug)
 
         return topics
 
     def get_context_data(self, **kwargs):
         context = super(Backup, self).get_context_data(**kwargs)
 
-        subject = get_object_or_404(Subject, slug = self.kwargs.get('slug', ''))
+        subject = get_object_or_404(Subject, slug=self.kwargs.get('slug', ''))
         
-        context['title'] = _('%s - Backup')%(str(subject))
+        context['title'] = _('%s - Backup') % (str(subject))
         context['subject'] = subject
 
         return context
+
 
 @login_required
 def realize_backup(request, subject):
@@ -792,17 +804,16 @@ def realize_backup(request, subject):
 
     s = BytesIO()
 
-    zf = zipfile.ZipFile(s, "w", compression = zipfile.ZIP_DEFLATED)
+    zf = zipfile.ZipFile(s, "w", compression=zipfile.ZIP_DEFLATED)
 
-    bulletins = Bulletin.objects.filter(id__in = resources_ids)
-    webpages = Webpage.objects.filter(id__in = resources_ids)
-    ytvideos = YTVideo.objects.filter(id__in = resources_ids)
-    filelinks = FileLink.objects.filter(id__in = resources_ids)
-    links = Link.objects.filter(id__in = resources_ids)
-    pdffiles = PDFFile.objects.filter(id__in = resources_ids)
-    goals = Goals.objects.filter(id__in = resources_ids)
-    webconferences = Webconference.objects.filter(id__in = resources_ids)
-
+    bulletins = Bulletin.objects.filter(id__in=resources_ids)
+    webpages = Webpage.objects.filter(id__in=resources_ids)
+    ytvideos = YTVideo.objects.filter(id__in=resources_ids)
+    filelinks = FileLink.objects.filter(id__in=resources_ids)
+    links = Link.objects.filter(id__in=resources_ids)
+    pdffiles = PDFFile.objects.filter(id__in=resources_ids)
+    goals = Goals.objects.filter(id__in=resources_ids)
+    webconferences = Webconference.objects.filter(id__in=resources_ids)
 
     for filelink in filelinks:
         if bool(filelink.file_content):
@@ -844,7 +855,7 @@ def realize_backup(request, subject):
     data_list = []
 
     if participants:
-        participants = User.objects.filter(subject_student__slug = subject)
+        participants = User.objects.filter(subject_student__slug=subject)
 
         for user in participants:
             if bool(user.image):
@@ -854,23 +865,23 @@ def realize_backup(request, subject):
 
                     zf.write(user.image.path, zip_path)
 
-        serializer_b = CompleteBulletinSerializer(bulletins, many = True)
-        serializer_w = CompleteWebpageSerializer(webpages, many = True)
-        serializer_y = CompleteYTVideoSerializer(ytvideos, many = True)
-        serializer_f = CompleteFileLinkSerializer(filelinks, many = True)
-        serializer_l = CompleteLinkSerializer(links, many = True)
-        serializer_p = CompletePDFFileSerializer(pdffiles, many = True)
-        serializer_g = CompleteGoalSerializer(goals, many = True)
-        serializer_c = CompleteWebconferenceSerializer(webconferences, many = True)
+        serializer_b = CompleteBulletinSerializer(bulletins, many=True)
+        serializer_w = CompleteWebpageSerializer(webpages, many=True)
+        serializer_y = CompleteYTVideoSerializer(ytvideos, many=True)
+        serializer_f = CompleteFileLinkSerializer(filelinks, many=True)
+        serializer_l = CompleteLinkSerializer(links, many=True)
+        serializer_p = CompletePDFFileSerializer(pdffiles, many=True)
+        serializer_g = CompleteGoalSerializer(goals, many=True)
+        serializer_c = CompleteWebconferenceSerializer(webconferences, many=True)
     else:
-        serializer_b = SimpleBulletinSerializer(bulletins, many = True)
-        serializer_w = SimpleWebpageSerializer(webpages, many = True)
-        serializer_y = SimpleYTVideoSerializer(ytvideos, many = True)
-        serializer_f = SimpleFileLinkSerializer(filelinks, many = True)
-        serializer_l = SimpleLinkSerializer(links, many = True)
-        serializer_p = SimplePDFFileSerializer(pdffiles, many = True)
-        serializer_g = SimpleGoalSerializer(goals, many = True)
-        serializer_c = SimpleWebconferenceSerializer(webconferences, many = True)
+        serializer_b = SimpleBulletinSerializer(bulletins, many=True)
+        serializer_w = SimpleWebpageSerializer(webpages, many=True)
+        serializer_y = SimpleYTVideoSerializer(ytvideos, many=True)
+        serializer_f = SimpleFileLinkSerializer(filelinks, many=True)
+        serializer_l = SimpleLinkSerializer(links, many=True)
+        serializer_p = SimplePDFFileSerializer(pdffiles, many=True)
+        serializer_g = SimpleGoalSerializer(goals, many=True)
+        serializer_c = SimpleWebconferenceSerializer(webconferences, many=True)
 
     if len(serializer_b.data) > 0:
         data_list.append(serializer_b.data)
@@ -909,12 +920,13 @@ def realize_backup(request, subject):
     zf.close()
 
     # Grab ZIP file from in-memory, make response with correct MIME-type
-    resp = HttpResponse(s.getvalue(), content_type = "application/x-zip-compressed")
+    resp = HttpResponse(s.getvalue(), content_type="application/x-zip-compressed")
     # ..and correct content-disposition
     resp['Content-Disposition'] = 'attachment; filename=%s' % zip_filename
     resp['Content-Length'] = s.tell()
 
     return resp
+
 
 class Restore(LoginRequiredMixin, TemplateView):
     login_url = reverse_lazy("users:login")
@@ -924,7 +936,7 @@ class Restore(LoginRequiredMixin, TemplateView):
     model = Subject
 
     def dispatch(self, request, *args, **kwargs):
-        subject = get_object_or_404(Subject, slug = kwargs.get('slug', ''))
+        subject = get_object_or_404(Subject, slug=kwargs.get('slug', ''))
 
         if not has_subject_permissions(request.user, subject):
             return redirect(reverse_lazy('subjects:home'))
@@ -934,16 +946,17 @@ class Restore(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super(Restore, self).get_context_data(**kwargs)
 
-        subject = get_object_or_404(Subject, slug = self.kwargs.get('slug', ''))
+        subject = get_object_or_404(Subject, slug=self.kwargs.get('slug', ''))
         
-        context['title'] = _('%s - Restore')%(str(subject))
+        context['title'] = _('%s - Restore') % (str(subject))
         context['subject'] = subject
 
         return context
 
+
 @login_required
 def realize_restore(request, subject):
-    subjetc = get_object_or_404(Subject, slug = subject)
+    subject = get_object_or_404(Subject, slug=subject)
     zip_file = request.FILES.get('zip_file', None)
 
     if zip_file:
@@ -965,51 +978,63 @@ def realize_restore(request, subject):
                         if "_my_subclass" in line[0]:
                             if line[0]["_my_subclass"] == "webpage":
                                 if "students" in line[0]:
-                                    serial = CompleteWebpageSerializer(data = line, many = True, context = {'subject': subject, 'files': file})
+                                    serial = CompleteWebpageSerializer(data=line, many=True,
+                                                                       context={'subject': subject, 'files': file})
                                 else:
-                                    serial = SimpleWebpageSerializer(data = line, many = True, context = {'subject': subject})
+                                    serial = SimpleWebpageSerializer(data=line, many=True, context={'subject': subject})
                             elif line[0]["_my_subclass"] == "bulletin":
                                 if "students" in line[0]:
                                     print(file.namelist())
                                     print(line[0]["file_content"])
                                     print(line[0]["file_content"] in file.namelist())
-                                    serial = CompleteBulletinSerializer(data = line, many = True, context = {'subject': subject, 'files': file})
+                                    serial = CompleteBulletinSerializer(data=line, many=True,
+                                                                        context={'subject': subject, 'files': file})
                                 else:
-                                    serial = SimpleBulletinSerializer(data = line, many = True, context = {'subject': subject, 'files': file})
+                                    serial = SimpleBulletinSerializer(data=line, many=True,
+                                                                      context={'subject': subject, 'files': file})
                             elif line[0]["_my_subclass"] == "filelink":
                                 if "students" in line[0]:
-                                    serial = CompleteFileLinkSerializer(data = line, many = True, context = {'subject': subject, 'files': file})
+                                    serial = CompleteFileLinkSerializer(data=line, many=True,
+                                                                        context={'subject': subject, 'files': file})
                                 else:
-                                    serial = SimpleFileLinkSerializer(data = line, many = True, context = {'subject': subject, 'files': file})
+                                    serial = SimpleFileLinkSerializer(data=line, many=True,
+                                                                      context={'subject': subject, 'files': file})
                             elif line[0]["_my_subclass"] == "link":
                                 if "students" in line[0]:
-                                    serial = CompleteLinkSerializer(data = line, many = True, context = {'subject': subject, 'files': file})
+                                    serial = CompleteLinkSerializer(data=line, many=True,
+                                                                    context={'subject': subject, 'files': file})
                                 else:
-                                    serial = SimpleLinkSerializer(data = line, many = True, context = {'subject': subject})
+                                    serial = SimpleLinkSerializer(data=line, many=True, context={'subject': subject})
                             elif line[0]["_my_subclass"] == "pdffile":
                                 if "students" in line[0]:
-                                    serial = CompletePDFFileSerializer(data = line, many = True, context = {'subject': subject, 'files': file})
+                                    serial = CompletePDFFileSerializer(data=line, many=True,
+                                                                       context={'subject': subject, 'files': file})
                                 else:
-                                    serial = SimplePDFFileSerializer(data = line, many = True, context = {'subject': subject, 'files': file})
+                                    serial = SimplePDFFileSerializer(data=line, many=True,
+                                                                     context={'subject': subject, 'files': file})
                             elif line[0]["_my_subclass"] == "goals":
                                 if "students" in line[0]:
-                                    serial = CompleteGoalSerializer(data = line, many = True, context = {'subject': subject, 'files': file})
+                                    serial = CompleteGoalSerializer(data=line, many=True,
+                                                                    context={'subject': subject, 'files': file})
                                 else:
-                                    serial = SimpleGoalSerializer(data = line, many = True, context = {'subject': subject})
+                                    serial = SimpleGoalSerializer(data=line, many=True, context={'subject': subject})
                             elif line[0]["_my_subclass"] == "ytvideo":
                                 if "students" in line[0]:
-                                    serial = CompleteYTVideoSerializer(data = line, many = True, context = {'subject': subject, 'files': file})
+                                    serial = CompleteYTVideoSerializer(data=line, many=True,
+                                                                       context={'subject': subject, 'files': file})
                                 else:
-                                    serial = SimpleYTVideoSerializer(data = line, many = True, context = {'subject': subject})
+                                    serial = SimpleYTVideoSerializer(data=line, many=True, context={'subject': subject})
                             elif line[0]["_my_subclass"] == "webconference":
                                 if "students" in line[0]:
-                                    serial = CompleteWebconferenceSerializer(data = line, many = True, context = {'subject': subject, 'files': file})
+                                    serial = CompleteWebconferenceSerializer(data=line, many=True,
+                                                                             context={'subject': subject, 'files': file})
                                 else:
-                                    serial = SimpleWebconferenceSerializer(data = line, many = True, context = {'subject': subject})
+                                    serial = SimpleWebconferenceSerializer(data=line, many=True,
+                                                                           context={'subject': subject})
                             
                             serial.is_valid()
                             serial.save()
 
     messages.success(request, _('Backup restored successfully!'))
 
-    return redirect(reverse_lazy('subjects:restore', kwargs = {"slug": subject}))
+    return redirect(reverse_lazy('subjects:restore', kwargs={"slug": subject}))
