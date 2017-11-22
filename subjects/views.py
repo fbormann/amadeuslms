@@ -220,8 +220,8 @@ class IndexView(LoginRequiredMixin, ListView):
             if self.request.user.is_staff:
                 self.template_name = "categories/home_admin_content.html"
 
-
-        return self.response_class(request = self.request, template = self.template_name, context = context, using = self.template_engine, **response_kwargs)
+        return self.response_class(request=self.request, template=self.template_name,
+                                   context=context, using=self.template_engine, **response_kwargs)
 
     def get_context_data(self, **kwargs):
         context = super(IndexView, self).get_context_data(**kwargs)
@@ -284,13 +284,13 @@ class SubjectCreateView(LoginRequiredMixin, LogMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         if kwargs.get('subject_slug'):
-            subject = get_object_or_404(Subject, slug = kwargs.get('subject_slug', ''))
+            subject = get_object_or_404(Subject, slug=kwargs.get('subject_slug', ''))
 
             if not has_category_permissions(request.user, subject.category):
                 return redirect(reverse_lazy('subjects:home'))
 
         if kwargs.get('slug'):
-            category = get_object_or_404(Category, slug = kwargs.get('slug', ''))
+            category = get_object_or_404(Category, slug=kwargs.get('slug', ''))
 
             if not has_category_permissions(request.user, category):
                 return redirect(reverse_lazy('subjects:home'))
@@ -307,9 +307,9 @@ class SubjectCreateView(LoginRequiredMixin, LogMixin, CreateView):
             # initial['professor'] = User.objects.all()
 
         if self.kwargs.get('subject_slug'): #when the user replicate a subject
-            subject = get_object_or_404(Subject, slug = self.kwargs['subject_slug'])
+            subject = get_object_or_404(Subject, slug=self.kwargs['subject_slug'])
             initial = initial.copy()
-            initial['category'] = Category.objects.filter(slug = subject.category.slug)
+            initial['category'] = Category.objects.filter(slug=subject.category.slug)
             initial['description'] = subject.description
             initial['name'] = subject.name
             initial['visible'] = subject.visible
@@ -332,19 +332,23 @@ class SubjectCreateView(LoginRequiredMixin, LogMixin, CreateView):
         context = super(SubjectCreateView, self).get_context_data(**kwargs)
         context['title'] = _('Create Subject')
         try:
-            students_selected = context['form'].cleaned_data['students'].values_list('id',flat=True)
-            professors_selected = context['form'].cleaned_data['professor'].values_list('id',flat=True)
-            context['form'].fields['professor'].queryset = context['form'].fields['professor'].queryset.exclude(id__in=students_selected)
-            context['form'].fields['students'].queryset = context['form'].fields['students'].queryset.exclude(id__in=professors_selected)
+            students_selected = context['form'].cleaned_data['students'].values_list('id', flat=True)
+            professors_selected = context['form'].cleaned_data['professor'].values_list('id', flat=True)
+            context['form'].fields['professor'].queryset = context['form'].fields['professor'].queryset\
+                .exclude(id__in=students_selected)
+            context['form'].fields['students'].queryset = context['form'].fields['students'].queryset\
+                .exclude(id__in=professors_selected)
+
         except AttributeError:
             pass
+
         if self.kwargs.get('slug'):
             context['slug'] = self.kwargs['slug']
 
         if self.kwargs.get('subject_slug'):
             context['title'] = _('Replicate Subject')
 
-            subject = get_object_or_404(Subject, slug = self.kwargs['subject_slug'])
+            subject = get_object_or_404(Subject, slug=self.kwargs['subject_slug'])
 
             context['slug'] = subject.category.slug
             context['replicate'] = True
@@ -363,7 +367,7 @@ class SubjectCreateView(LoginRequiredMixin, LogMixin, CreateView):
             self.object.category = Category.objects.get(slug=self.kwargs['slug'])
 
         if self.kwargs.get('subject_slug'):
-            subject = get_object_or_404(Subject, slug = self.kwargs['subject_slug'])
+            subject = get_object_or_404(Subject, slug=self.kwargs['subject_slug'])
             self.object.category = subject.category
 
         self.object.save()
@@ -375,7 +379,8 @@ class SubjectCreateView(LoginRequiredMixin, LogMixin, CreateView):
         self.log_context['subject_name'] = self.object.name
         self.log_context['subject_slug'] = self.object.slug
 
-        super(SubjectCreateView, self).createLog(self.request.user, self.log_component, self.log_action, self.log_resource, self.log_context)
+        super(SubjectCreateView, self).createLog(self.request.user, self.log_component, self.log_action,
+                                                 self.log_resource, self.log_context)
 
         return super(SubjectCreateView, self).form_valid(form)
 
