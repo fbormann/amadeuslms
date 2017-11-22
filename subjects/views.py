@@ -393,6 +393,7 @@ class SubjectCreateView(LoginRequiredMixin, LogMixin, CreateView):
                          % (self.object.name, self.object.category.name))
         return reverse_lazy('subjects:index')
 
+
 class SubjectUpdateView(LoginRequiredMixin, LogMixin, UpdateView):
     log_component = 'subject'
     log_action = 'update'
@@ -407,7 +408,7 @@ class SubjectUpdateView(LoginRequiredMixin, LogMixin, UpdateView):
     redirect_field_name = 'next'
 
     def dispatch(self, request, *args, **kwargs):
-        self.subject = get_object_or_404(Subject, slug = kwargs.get('slug', ''))
+        self.subject = get_object_or_404(Subject, slug=kwargs.get('slug', ''))
 
         if not has_subject_permissions(request.user, self.subject):
             return redirect(reverse_lazy('subjects:home'))
@@ -417,18 +418,20 @@ class SubjectUpdateView(LoginRequiredMixin, LogMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super(SubjectUpdateView, self).get_context_data(**kwargs)
         try:
-            students_selected = context['form'].cleaned_data['students'].values_list('id',flat=True)
-            professors_selected = context['form'].cleaned_data['professor'].values_list('id',flat=True)
+            students_selected = context['form'].cleaned_data['students'].values_list('id', flat=True)
+            professors_selected = context['form'].cleaned_data['professor'].values_list('id', flat=True)
         except AttributeError:
             students_selected = self.subject.students.all().values_list('id',flat=True)
             professors_selected = self.subject.professor.all().values_list('id',flat=True)
 
-        context['form'].fields['professor'].queryset = context['form'].fields['professor'].queryset.exclude(id__in=students_selected)
-        context['form'].fields['students'].queryset = context['form'].fields['students'].queryset.exclude(id__in=professors_selected)
+        context['form'].fields['professor'].queryset = context['form'].fields['professor'].queryset\
+            .exclude(id__in=students_selected)
+        context['form'].fields['students'].queryset = context['form'].fields['students'].queryset\
+            .exclude(id__in=professors_selected)
         context['title'] = _('Update Subject')
         context['template_extends'] = 'categories/home.html'
         context['subjects_menu_active'] = 'subjects_menu_active'
-        context['subject_data'] = get_object_or_404(Subject, slug = self.kwargs.get('slug', ''))
+        context['subject_data'] = get_object_or_404(Subject, slug=self.kwargs.get('slug', ''))
 
         return context
 
@@ -438,8 +441,8 @@ class SubjectUpdateView(LoginRequiredMixin, LogMixin, UpdateView):
             self.object.save()
 
         if not self.object.visible:
-            Topic.objects.filter(subject = self.object, repository = False).update(visible = False)
-            Resource.objects.filter(topic__subject = self.object, topic__repository = False).update(visible = False)
+            Topic.objects.filter(subject=self.object, repository=False).update(visible=False)
+            Resource.objects.filter(topic__subject=self.object, topic__repository=False).update(visible=False)
 
         self.log_context['category_id'] = self.object.category.id
         self.log_context['category_name'] = self.object.category.name
@@ -448,11 +451,14 @@ class SubjectUpdateView(LoginRequiredMixin, LogMixin, UpdateView):
         self.log_context['subject_name'] = self.object.name
         self.log_context['subject_slug'] = self.object.slug
 
-        super(SubjectUpdateView, self).createLog(self.request.user, self.log_component, self.log_action, self.log_resource, self.log_context)
+        super(SubjectUpdateView, self).createLog(self.request.user, self.log_component, self.log_action,
+                                                 self.log_resource, self.log_context)
 
-        messages.success(self.request, _('The Subject "%s" was updated on "%s" Category successfully!')%(self.object.name, self.object.category.name ))
+        messages.success(self.request, _('The Subject "%s" was updated on "%s" Category successfully!')
+                         % (self.object.name, self.object.category.name))
 
         return reverse_lazy('subjects:index')
+
 
 class SubjectDeleteView(LoginRequiredMixin, LogMixin, DeleteView):
     log_component = 'subject'
@@ -466,13 +472,12 @@ class SubjectDeleteView(LoginRequiredMixin, LogMixin, DeleteView):
     template_name = 'subjects/delete.html'
 
     def dispatch(self, request, *args, **kwargs):
-        subject = get_object_or_404(Subject, slug = kwargs.get('slug', ''))
+        subject = get_object_or_404(Subject, slug=kwargs.get('slug', ''))
 
         if not has_subject_permissions(request.user, subject):
             return redirect(reverse_lazy('subjects:home'))
 
         return super(SubjectDeleteView, self).dispatch(request, *args, **kwargs)
-
 
     def delete(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -489,35 +494,39 @@ class SubjectDeleteView(LoginRequiredMixin, LogMixin, DeleteView):
         self.log_context['subject_name'] = self.object.name
         self.log_context['subject_slug'] = self.object.slug
 
-        super(SubjectDeleteView, self).createLog(self.request.user, self.log_component, self.log_action, self.log_resource, self.log_context)
+        super(SubjectDeleteView, self).createLog(self.request.user, self.log_component, self.log_action,
+                                                 self.log_resource, self.log_context)
 
-        messages.success(self.request, _('Subject "%s" removed successfully!')%(self.object.name))
+        messages.success(self.request, _('Subject "%s" removed successfully!') % (self.object.name))
 
-        return JsonResponse({'url':reverse_lazy('subjects:index')})
-
+        return JsonResponse({'url': reverse_lazy('subjects:index')})
 
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
+
         if self.object.students.count() > 0:
-            messages.error(self.request, _("Subject can't be removed. The subject still possess students and learning objects associated"))
-            return JsonResponse({'error':True,'url':reverse_lazy('subjects:index')})
+            messages.error(self.request, _("Subject can't be removed. The subject still possess students and learning"
+                                           " objects associated"))
+            return JsonResponse({'error': True, 'url': reverse_lazy('subjects:index')})
+
         for topic in self.object.topic_subject.all():
             if topic.resource_topic.count() > 0:
-                messages.error(self.request, _("Subject can't be removed. The subject still possess students and learning objects associated"))
-                return JsonResponse({'error':True,'url':reverse_lazy('subjects:index')})
+                messages.error(self.request, _("Subject can't be removed. The subject still possess students and "
+                                               "learning objects associated"))
+                return JsonResponse({'error': True, 'url': reverse_lazy('subjects:index')})
+
         context = self.get_context_data(object=self.object)
         return self.render_to_response(context)
 
     def post(self, *args, **kwargs):
-
         return self.delete(*args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super(SubjectDeleteView, self).get_context_data(**kwargs)
-        subject = get_object_or_404(Subject, slug = self.kwargs.get('slug'))
+        subject = get_object_or_404(Subject, slug=self.kwargs.get('slug'))
         context['subject'] = subject
 
-        if (self.request.GET.get('view') == 'index'):
+        if self.request.GET.get('view') == 'index':
             context['index'] = True
         else:
             context['index'] = False
@@ -532,10 +541,10 @@ class SubjectDeleteView(LoginRequiredMixin, LogMixin, DeleteView):
         self.log_context['subject_name'] = self.object.name
         self.log_context['subject_slug'] = self.object.slug
 
-        super(SubjectDeleteView, self).createLog(self.request.user, self.log_component, self.log_action, self.log_resource, self.log_context)
+        super(SubjectDeleteView, self).createLog(self.request.user, self.log_component, self.log_action,
+                                                 self.log_resource, self.log_context)
 
-
-        messages.success(self.request, _('Subject "%s" removed successfully!')%(self.object.name))
+        messages.success(self.request, _('Subject "%s" removed successfully!') % (self.object.name))
 
         return reverse_lazy('subjects:index')
 
