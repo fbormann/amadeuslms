@@ -74,6 +74,7 @@ from webconference.models import Webconference
 
 from amadeus.permissions import has_category_permissions, has_subject_permissions, has_subject_view_permissions, has_resource_permissions
 
+
 class HomeView(LoginRequiredMixin, ListView):
     login_url = reverse_lazy("users:login")
     redirect_field_name = 'next'
@@ -88,7 +89,8 @@ class HomeView(LoginRequiredMixin, ListView):
         else:
             pk = self.request.user.pk
 
-            subjects = Subject.objects.filter(Q(students__pk=pk) | Q(professor__pk=pk) | Q(category__coordinators__pk=pk)).distinct()
+            subjects = Subject.objects.filter(Q(students__pk=pk) | Q(professor__pk=pk)
+                                              | Q(category__coordinators__pk=pk)).distinct()
 
         self.total = subjects.count()
 
@@ -106,16 +108,16 @@ class HomeView(LoginRequiredMixin, ListView):
         tags_list = []
         for tag in tags:
             if len(tags_list) <= tag_amount:
-                if Resource.objects.filter(tags__pk=tag.pk, students__pk = self.request.user.pk).count() > 0 or Subject.objects.filter(tags__pk = tag.pk).count() > 0:
-                    tags_list.append((tag.name, Subject.objects.filter(tags__pk = tag.pk).count()))
-                    tags_list.sort(key= lambda x: x[1], reverse=True) #sort by value
+                if Resource.objects.filter(tags__pk=tag.pk, students__pk=self.request.user.pk).count() > 0 \
+                        or Subject.objects.filter(tags__pk=tag.pk).count() > 0:
+                    tags_list.append((tag.name, Subject.objects.filter(tags__pk=tag.pk).count()))
+                    tags_list.sort(key=lambda x: x[1], reverse=True) #sort by value
 
             elif len(tags_list) > tag_amount:
-                count = Subject.objects.filter(tags__pk = tag.pk).count()
+                count = Subject.objects.filter(tags__pk=tag.pk).count()
                 if count > tags_list[tag_amount][1]:
                     tags_list[tag_amount - 1] = (tag.name, count)
-                    tags_list.sort(key = lambda x: x[1], reverse=True)
-
+                    tags_list.sort(key=lambda x: x[1], reverse=True)
 
         i = 0
         tags = []
@@ -158,18 +160,20 @@ class IndexView(LoginRequiredMixin, ListView):
             self.totals['my_subjects'] = count_subjects(self.request.user, False)
 
             if not self.kwargs.get('option'):
-                my_categories = Category.objects.filter(Q(coordinators__pk=pk) | Q(subject_category__professor__pk=pk) | Q(subject_category__students__pk = pk, visible = True)).distinct().order_by('name')
+                my_categories = Category.objects.filter(Q(coordinators__pk=pk) | Q(subject_category__professor__pk=pk)
+                                                        | Q(subject_category__students__pk=pk, visible=True))\
+                    .distinct().order_by('name')
 
                 categories = my_categories
             else:
-                categories = Category.objects.filter(Q(coordinators__pk = pk) | Q(visible=True) ).distinct().order_by('name')
+                categories = Category.objects.filter(Q(coordinators__pk=pk) | Q(visible=True)).distinct()\
+                    .order_by('name')
 
         #if not self.request.user.is_staff:
 
                 #my_categories = [category for category in categories if self.request.user in category.coordinators.all() \
                         #or has_professor_profile(self.request.user, category) or has_student_profile(self.request.user, category)]
                         #So I remove all categories that doesn't have the possibility for the user to be on
-
 
         return categories
 
@@ -199,7 +203,7 @@ class IndexView(LoginRequiredMixin, ListView):
 
         try:
             page = paginator.page(page_number)
-            return (paginator, page, page.object_list, page.has_other_pages())
+            return paginator, page, page.object_list, page.has_other_pages()
         except InvalidPage as e:
             raise Http404(_('Invalid page (%(page_number)s): %(message)s') % {
                 'page_number': page_number,
